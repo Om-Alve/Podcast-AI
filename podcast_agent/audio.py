@@ -68,7 +68,7 @@ def generate_audio(turns, output_filename="out/full_conversation.wav"):
         if turn_audio_data:
             turn_audio = np.concatenate(turn_audio_data)
             # Add a pause of 0.5 seconds between turns
-            pause = np.zeros(int(0.5 * 24000))
+            pause = np.zeros(int(0.3 * 24000))
             all_audio_data.append(turn_audio)
             all_audio_data.append(pause)
     

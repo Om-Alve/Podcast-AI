@@ -161,7 +161,7 @@ Generate a podcast script for a given topic. The script should be structured as 
 - Tailor language complexity to suit the podcast's target audience
 - Include relevant contemporary references or recent developments when appropriate
 - Maintain natural conversation flow while keeping each turn concise
-- Use pronunciation guidance for uncommon words, proper nouns, or industry-specific terminology
+- Use pronunciation guidance ONLY for proper nouns, or industry-specific terminology. DO NOT USE THESE FOR NORMAL ENGLISH WORDS or Numbers.
 - Apply stress modifiers strategically to emphasize important points or create natural speech patterns
 - Don't overuse pronunciation and stress modifiers—apply them only where they enhance clarity or expressiveness
 """
