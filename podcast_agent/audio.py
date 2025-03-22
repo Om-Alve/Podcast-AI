@@ -15,8 +15,8 @@ def initialize_pipelines():
     pipeline_speaker1 = KPipeline(lang_code='a')
     
     voices = {
-        0: "am_fenrir",  # Voice for speaker 0
-        1: "af_heart"     # Voice for speaker 1
+        0: "af_heart",  # Voice for speaker 0
+        1: "af_bella"     # Voice for speaker 1
     }
     
     return pipeline_speaker0, pipeline_speaker1, voices

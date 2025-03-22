@@ -127,13 +127,13 @@ Generate a podcast script for a given topic. The script should be structured as 
 
 ```json
 [
-    ["Have you noticed how [sustainability](/səˌsteɪnəˈbɪləti/) has become such a hot topic in the fashion industry lately?", 0],
+    ["Have you noticed how sustainability has become such a hot topic in the fashion industry lately?", 0],
     ["[Absolutely](+2)! It's completely changing how brands approach their products and marketing.", 1],
     ["I read that the fashion industry is actually one of the [biggest](+1) polluters in the world.", 0],
     ["That's right. It's responsible for about 10% of global carbon emissions.", 1],
     ["And it uses an [enormous](+1) amount of water. A single cotton t-shirt can take up to 2,700 liters to produce.", 1],
     ["That's shocking! I had [no](+1) idea the impact was that significant.", 0],
-    ["What do you think about the rise of these [sustainable](/səˌsteɪnəˈbɪl/) fashion brands?", 0],
+    ["What do you think about the rise of these sustainable fashion brands?", 0],
     ["I think it's encouraging. Companies like [Patagonia](/pætəˈɡoʊniə/) have been leading the way for years.", 1],
     ["They've shown that sustainability can be good for business [too](-1), not just the planet.", 1],
     ["I've noticed more mainstream brands starting to launch eco-friendly lines as well.", 0],
@@ -161,7 +161,7 @@ Generate a podcast script for a given topic. The script should be structured as 
 - Tailor language complexity to suit the podcast's target audience
 - Include relevant contemporary references or recent developments when appropriate
 - Maintain natural conversation flow while keeping each turn concise
-- Use pronunciation guidance ONLY for proper nouns, or industry-specific terminology. DO NOT USE THESE FOR NORMAL ENGLISH WORDS or Numbers.
+- Use pronunciation guidance ONLY for proper nouns, or industry-specific terminology. Only use these for words which are hard to pronounce.
 - Apply stress modifiers strategically to emphasize important points or create natural speech patterns
 - Don't overuse pronunciation and stress modifiers—apply them only where they enhance clarity or expressiveness
 """
