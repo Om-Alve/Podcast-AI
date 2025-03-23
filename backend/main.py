@@ -1,18 +1,21 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Query
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import re
 import uuid
-import time
-from pydantic import BaseModel
-from typing import Optional, Dict, List
-import subprocess
+import logging
+from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any
 
 from podcast_agent.generator import get_turns
 from podcast_agent.audio import generate_audio
-from podcast_agent.visualizer import create_waveform_video
+from podcast_agent.visualizer import create_dot_visualization_video
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Podcast Generator API")
 
@@ -34,11 +37,11 @@ app.mount("/media", StaticFiles(directory="out"), name="media")
 app.mount("/videos", StaticFiles(directory="video"), name="videos")
 
 # Store job status
-jobs = {}
+jobs: Dict[str, Dict[str, Any]] = {}
 
 class PodcastRequest(BaseModel):
     topic: str
-    waveform_color: Optional[str] = "#00FF00"
+    waveform_color: Optional[str] = Field(default="#00FF00", pattern="^#[0-9A-Fa-f]{6}$")
 
 class PodcastResponse(BaseModel):
     job_id: str
@@ -53,24 +56,33 @@ class JobStatusResponse(BaseModel):
     video_url: Optional[str] = None
     error: Optional[str] = None
 
-def generate_podcast_task(job_id: str, topic: str, waveform_color: str):
+def sanitize_filename(name: str) -> str:
+    """Create a safe filename from the topic."""
+    # Replace any non-alphanumeric chars with underscores
+    return re.sub(r'[^a-zA-Z0-9]', '_', name)[:50]
+
+async def generate_podcast_task(job_id: str, topic: str, waveform_color: str):
     try:
         # Update job status
         jobs[job_id]["status"] = "generating_script"
         jobs[job_id]["progress"] = 0.1
+        
+        logger.info(f"Generating script for job {job_id}, topic: {topic}")
         
         # Generate conversation turns
         turns = get_turns(topic)
         jobs[job_id]["progress"] = 0.3
         
         # Generate filename
-        filename_topic = re.sub(r"\s+", "_", topic)
+        filename_topic = sanitize_filename(topic)
         unique_id = job_id[:8]
         audio_filename = f"out/{filename_topic}_{unique_id}.wav"
         
         # Update job status
         jobs[job_id]["status"] = "generating_audio"
         jobs[job_id]["progress"] = 0.4
+        
+        logger.info(f"Generating audio for job {job_id}")
         
         # Generate audio
         audio_file = generate_audio(turns, audio_filename)
@@ -83,22 +95,33 @@ def generate_podcast_task(job_id: str, topic: str, waveform_color: str):
         # Update job status
         jobs[job_id]["status"] = "generating_video"
         
+        logger.info(f"Generating video for job {job_id}")
+        
         # Generate video visualization
         video_filename = f"video/{filename_topic}_{unique_id}_waveform.mp4"
-        create_waveform_video(audio_file, video_filename, color=waveform_color)
+        create_dot_visualization_video(audio_file, video_filename, color=waveform_color)
         
         jobs[job_id]["video_url"] = f"/videos/{os.path.basename(video_filename)}"
         jobs[job_id]["status"] = "completed"
         jobs[job_id]["progress"] = 1.0
         
+        logger.info(f"Job {job_id} completed successfully")
+        
     except Exception as e:
+        logger.error(f"Error generating podcast (job {job_id}): {str(e)}", exc_info=True)
         jobs[job_id]["status"] = "failed"
         jobs[job_id]["error"] = str(e)
-        print(f"Error generating podcast: {e}")
 
 @app.post("/api/podcast", response_model=PodcastResponse)
 async def create_podcast(podcast_req: PodcastRequest, background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())
+    
+    # Validate color format
+    try:
+        if podcast_req.waveform_color and not re.match(r"^#[0-9A-Fa-f]{6}$", podcast_req.waveform_color):
+            raise HTTPException(status_code=400, detail="Invalid color format. Use hex format like #00FF00")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid color format. Use hex format like #00FF00")
     
     # Initialize job status
     jobs[job_id] = {
@@ -110,6 +133,8 @@ async def create_podcast(podcast_req: PodcastRequest, background_tasks: Backgrou
         "waveform_color": podcast_req.waveform_color,
         "error": None
     }
+    
+    logger.info(f"Creating new podcast job {job_id} for topic: {podcast_req.topic}")
     
     # Start generation in background
     background_tasks.add_task(
@@ -154,15 +179,23 @@ async def delete_podcast(job_id: str):
     
     # Delete audio file if exists
     if job["audio_url"]:
-        audio_path = job["audio_url"].replace("/media/", "out/")
+        audio_path = os.path.join("out", os.path.basename(job["audio_url"].replace("/media/", "")))
         if os.path.exists(audio_path):
-            os.remove(audio_path)
+            try:
+                os.remove(audio_path)
+                logger.info(f"Deleted audio file: {audio_path}")
+            except Exception as e:
+                logger.error(f"Error deleting audio file {audio_path}: {str(e)}")
     
     # Delete video file if exists
     if job["video_url"]:
-        video_path = job["video_url"].replace("/videos/", "video/")
+        video_path = os.path.join("video", os.path.basename(job["video_url"].replace("/videos/", "")))
         if os.path.exists(video_path):
-            os.remove(video_path)
+            try:
+                os.remove(video_path)
+                logger.info(f"Deleted video file: {video_path}")
+            except Exception as e:
+                logger.error(f"Error deleting video file {video_path}: {str(e)}")
     
     # Remove job from jobs dict
     del jobs[job_id]

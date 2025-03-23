@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,7 @@ const Index = () => {
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
   const [progress, setProgress] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const colorMap: Record<string, string> = {
     blue: "#1E90FF",
@@ -66,6 +67,12 @@ const Index = () => {
     setJobId(null);
     setJobStatus(null);
     setProgress(0);
+    setIsPlaying(false);
+    
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
     
     try {
       const response = await fetch("http://localhost:8000/api/podcast", {
@@ -128,22 +135,69 @@ const Index = () => {
     checkStatus();
   }, [jobId]);
   
+  useEffect(() => {
+    // Create new audio element when the audio URL changes
+    if (audioUrl && podcastGenerated) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      
+      const fullAudioUrl = `http://localhost:8000${audioUrl}`;
+      const audio = new Audio(fullAudioUrl);
+      
+      audio.addEventListener('ended', () => {
+        setIsPlaying(false);
+      });
+      
+      audioRef.current = audio;
+    }
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+    };
+  }, [audioUrl, podcastGenerated]);
+  
   const togglePlayPause = () => {
-    if (!podcastGenerated) return;
+    if (!podcastGenerated || !audioRef.current) return;
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().catch(error => {
+        console.error("Error playing audio:", error);
+        toast.error("Failed to play podcast audio");
+      });
+    }
+    
     setIsPlaying(!isPlaying);
   };
   
   const downloadPodcast = () => {
-    if (!podcastGenerated || !jobStatus?.video_url) return;
+    if (!podcastGenerated || !jobStatus?.video_url) {
+      toast.error("No podcast available to download");
+      return;
+    }
     
-    const a = document.createElement("a");
-    a.href = `http://localhost:8000${jobStatus.video_url}`;
-    a.download = `podcast_${topic.replace(/\s+/g, "_")}.mp4`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    
-    toast.success("Podcast downloading...");
+    try {
+      // Create the full URL to the video file
+      const fullVideoUrl = `http://localhost:8000${jobStatus.video_url}`;
+      
+      // Create a temporary anchor element to trigger the download
+      const a = document.createElement("a");
+      a.href = fullVideoUrl;
+      a.download = `podcast_${topic.replace(/\s+/g, "_").replace(/[^\w-]/g, "")}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      toast.success("Podcast download started");
+    } catch (error) {
+      console.error("Error downloading podcast:", error);
+      toast.error("Failed to download podcast");
+    }
   };
   
   return (
@@ -319,13 +373,6 @@ const Index = () => {
               </Button>
             </CardFooter>
           </Card>
-        </div>
-        
-        <div className="text-center text-sm text-muted-foreground">
-          <p>
-            Note: This application connects to a local API server running at http://localhost:8000.
-            Make sure the server is running before generating podcasts.
-          </p>
         </div>
       </div>
     </Layout>
